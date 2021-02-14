@@ -9,7 +9,9 @@ import android.net.NetworkRequest
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleObserver
 import androidx.lifecycle.OnLifecycleEvent
-import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 
@@ -20,6 +22,10 @@ class NetworkMonitor(
     private lateinit var networkCallback: ConnectivityManager.NetworkCallback
     private var connectivityManager: ConnectivityManager? = null
     private val validNetworks = HashSet<Network>()
+
+    private lateinit var job: Job
+    private lateinit var coroutineScope: CoroutineScope
+
     private val _networkAvailableStateFlow: MutableStateFlow<NetworkState> =
         MutableStateFlow(NetworkState.Available)
     val networkAvailableStateFlow
@@ -34,6 +40,8 @@ class NetworkMonitor(
     @OnLifecycleEvent(Lifecycle.Event.ON_START)
     fun registerNetworkCallback() {
         networkCallback = createNetworkCallback()
+        job = Job()
+        coroutineScope = CoroutineScope(Dispatchers.Default + job)
         val networkRequest = NetworkRequest.Builder()
             .addCapability(NET_CAPABILITY_INTERNET)
             .build()
@@ -45,6 +53,7 @@ class NetworkMonitor(
     fun unregisterNetworkCallback() {
         validNetworks.clear()
         connectivityManager?.unregisterNetworkCallback(networkCallback)
+        job.cancel()
     }
 
     private fun createNetworkCallback() = object : ConnectivityManager.NetworkCallback() {
@@ -71,7 +80,7 @@ class NetworkMonitor(
     }
 
     private fun checkValidNetworks() {
-        GlobalScope.launch {
+        coroutineScope.launch {
             _networkAvailableStateFlow.emit(
                 if (validNetworks.size > 0)
                     NetworkState.Available
