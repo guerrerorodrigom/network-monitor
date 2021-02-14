@@ -39,13 +39,8 @@ class NetworkMonitor(
 
     @OnLifecycleEvent(Lifecycle.Event.ON_START)
     fun registerNetworkCallback() {
-        networkCallback = createNetworkCallback()
-        job = Job()
-        coroutineScope = CoroutineScope(Dispatchers.Default + job)
-        val networkRequest = NetworkRequest.Builder()
-            .addCapability(NET_CAPABILITY_INTERNET)
-            .build()
-        connectivityManager?.registerNetworkCallback(networkRequest, networkCallback)
+        initCoroutine()
+        initNetworkMonitoring()
         checkCurrentNetworkState()
     }
 
@@ -54,6 +49,20 @@ class NetworkMonitor(
         validNetworks.clear()
         connectivityManager?.unregisterNetworkCallback(networkCallback)
         job.cancel()
+    }
+
+    private fun initCoroutine() {
+        job = Job()
+        coroutineScope = CoroutineScope(Dispatchers.Default + job)
+    }
+
+    private fun initNetworkMonitoring() {
+        networkCallback = createNetworkCallback()
+
+        val networkRequest = NetworkRequest.Builder()
+            .addCapability(NET_CAPABILITY_INTERNET)
+            .build()
+        connectivityManager?.registerNetworkCallback(networkRequest, networkCallback)
     }
 
     private fun createNetworkCallback() = object : ConnectivityManager.NetworkCallback() {
